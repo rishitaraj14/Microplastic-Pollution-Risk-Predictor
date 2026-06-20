@@ -4,7 +4,9 @@ An advanced environmental intelligence platform that analyzes multiple indicator
 
 ## 🔗 Live Website
 
-**[Open the Live Application Here](https://rishitaraj14.github.io/Microplastic-Pollution-Risk-Predictor/)**
+**🚀 [Open the Live Application Here](https://stately-fenglisu-225d1b.netlify.app/)**
+
+**Hosted on Netlify** - Fast, reliable, and always up-to-date!
 
 ## 📋 About
 
@@ -37,7 +39,7 @@ The Microplastic Pollution Risk Predictor helps you understand microplastic expo
 
 ## 🚀 Quick Start
 
-1. Visit the live application: https://rishitaraj14.github.io/Microplastic-Pollution-Risk-Predictor/
+1. Visit the live application: https://stately-fenglisu-225d1b.netlify.app/
 2. Select your preferred predictor mode:
    - **Manual Predictor**: Enter custom environmental parameters
    - **City Predictor**: Select an Indian city for instant analysis
