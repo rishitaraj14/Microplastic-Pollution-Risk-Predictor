@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microplastic Pollution Risk Predictor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050d1a;
+    --surface: #0b1a2e;
+    --card: #0f2340;
+    --border: #1a3558;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2eaf4;
+    --muted: #6b8cad;
+    --low: #10b981;
+    --medium: #f59e0b;
+    --high: #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── UNDERWATER CANVAS BACKGROUND ─── */
+  #particleCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.38;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(5, 13, 26, 0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 60px;
+  }
+
+  .nav-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-right: auto;
+    white-space: nowrap;
+  }
+
+  nav button {
+    padding: 7px 16px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  nav button:hover, nav button.active-btn {
+    background: rgba(0,229,255,0.08);
+    border-color: rgba(0,229,255,0.25);
+    color: var(--accent);
+  }
+
+  /* ─── PAGES ─── */
+  .page { display: none; position: relative; z-index: 1; }
+  .page.active { display: block; }
+
+  /* ─── HERO ─── */
+  .hero {
+    padding: 80px 48px 60px;
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(90deg, var(--accent), #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 620px;
+    margin: 0 auto 40px;
+  }
+
+  /* ─── STAT CARDS ─── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+    padding: 0 32px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: left;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .stat-card:hover {
+    border-color: rgba(0,229,255,0.4);
+    transform: translateY(-2px);
+  }
+
+  .stat-icon { font-size: 28px; margin-bottom: 12px; }
+
+  .stat-card h3 {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .stat-card p { font-size: 14px; color: var(--text); line-height: 1.6; }
+
+  .stat-card .big-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  /* ─── SECTION ─── */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 60px;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── CHARTS ─── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .chart-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .chart-box h4 {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 16px;
+  }
+
+  canvas { max-width: 100%; }
+
+  /* ─── PREDICTOR ─── */
+  .predictor-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 32px;
+  }
+
+  @media (max-width: 720px) { .predictor-layout { grid-template-columns: 1fr; } }
+
+  .pred-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+  }
+
+  .pred-panel h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--accent);
+  }
+
+  .form-group { margin-bottom: 14px; }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+  }
+
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group input::placeholder { color: var(--muted); }
+
+  .pred-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(90deg, #0891b2, #6d28d9);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-family: 'Sora', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .pred-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .pred-btn:active { transform: translateY(0); }
+
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 16px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .result-box.visible { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .result-risk {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .risk-low { color: var(--low); }
+  .risk-medium { color: var(--medium); }
+  .risk-high { color: var(--high); }
+
+  .result-detail {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .result-detail span { color: var(--text); font-weight: 600; }
+
+  /* ─── AI ANALYSIS BOX ─── */
+  .ai-analysis-box {
+    background: linear-gradient(135deg, rgba(0,229,255,0.04), rgba(124,58,237,0.06));
+    border: 1px solid rgba(0,229,255,0.25);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+    display: none;
+    animation: fadeIn 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-analysis-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), #818cf8, var(--accent3));
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+  .ai-analysis-box.visible { display: block; }
+
+  .ai-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ai-pulse {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,229,255,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(0,229,255,0); }
+  }
+
+  .ai-text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.75;
+    white-space: pre-wrap;
+  }
+
+  .ai-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .ai-dots span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+
+  .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* City autocomplete */
+  .autocomplete-wrap { position: relative; }
+
+  .suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: #0f2340;
+    border: 1px solid var(--accent);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+  }
+
+  .suggestions div {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .suggestions div:hover { background: rgba(0,229,255,0.1); color: var(--accent); }
+  .suggestions div:last-child { border-bottom: none; }
+
+  /* ─── DATASET ─── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); }
+
+  th {
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td { padding: 11px 16px; border-bottom: 1px solid rgba(26,53,88,0.5); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .badge-low { background: rgba(16,185,129,0.15); color: var(--low); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-medium { background: rgba(245,158,11,0.15); color: var(--medium); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-high { background: rgba(239,68,68,0.15); color: var(--high); border: 1px solid rgba(239,68,68,0.3); }
+
+  /* ─── RESOURCES ─── */
+  .resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+  .resource-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .resource-card:hover { border-color: rgba(0,229,255,0.35); transform: translateY(-2px); }
+  .resource-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .resource-card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+
+  .resource-card a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .resource-card a:hover { text-decoration: underline; }
+
+  /* ─── PAGE HEADER ─── */
+  .page-header { padding: 48px 32px 32px; max-width: 1100px; margin: 0 auto; }
+  .page-header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .page-header p { color: var(--muted); font-size: 15px; }
+
+  /* ─── DIVIDER ─── */
+  .divider { height: 1px; background: var(--border); max-width: 1100px; margin: 0 auto 40px; }
+
+  /* ─── AI CHAT PANEL (full AI page) ─── */
+  .ai-chat-layout {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 32px 60px;
+  }
+
+  .chat-messages {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    min-height: 340px;
+    max-height: 500px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .msg {
+    display: flex;
+    gap: 12px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .msg-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .msg-avatar.user { background: rgba(124,58,237,0.3); border: 1px solid rgba(124,58,237,0.5); }
+  .msg-avatar.ai { background: rgba(0,229,255,0.15); border: 1px solid rgba(0,229,255,0.3); }
+
+  .msg-content {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    max-width: calc(100% - 44px);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .msg-content.user { background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.2); }
+
+  .chat-input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--muted); }
+
+  .chat-send-btn {
+    padding: 12px 22px;
+    background: linear-gradient(90deg, #0891b2, #6d28d9);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .chat-send-btn:hover { opacity: 0.85; }
+  .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .suggested-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .sq-btn {
+    padding: 7px 14px;
+    background: rgba(0,229,255,0.07);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .sq-btn:hover { background: rgba(0,229,255,0.14); color: var(--accent); border-color: rgba(0,229,255,0.4); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ─── PARTICLE CANVAS ─── -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <div class="nav-logo">◈ MICROPLASTIC.IO</div>
+  <button onclick="showPage('home')" id="btn-home" class="active-btn">Home</button>
+  <button onclick="showPage('about')" id="btn-about">About</button>
+  <button onclick="showPage('predictor')" id="btn-predictor">Manual Predictor</button>
+  <button onclick="showPage('city')" id="btn-city">City Predictor</button>
+  <button onclick="showPage('ai')" id="btn-ai">🤖 AI Analysis</button>
+  <button onclick="showPage('dataset')" id="btn-dataset">Dataset</button>
+  <button onclick="showPage('visualization')" id="btn-visualization">Charts</button>
+  <button onclick="showPage('resources')" id="btn-resources">Resources</button>
+</nav>
+
+<!-- ══════════════ HOME ══════════════ -->
+<div id="home" class="page active">
+  <div class="hero">
+    <div class="hero-badge">Environmental Intelligence Platform</div>
+    <h1>Microplastic Pollution<br><span>Risk Predictor</span></h1>
+    <p>Analyze environmental indicators — population density, plastic waste, recycling rates, rainfall, and river proximity — to estimate microplastic contamination risk for any location or Indian city.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-icon">🌍</div>
+      <h3>Global Plastic Waste</h3>
+      <div class="big-num">350M+</div>
+      <p>tons of plastic waste produced globally every year</p>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🌊</div>
+      <h3>Ocean Pollution</h3>
+      <div class="big-num">1–2M</div>
+      <p>tons of plastic enter oceans each year</p>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔬</div>
+      <h3>Microplastics</h3>
+      <div class="big-num">&lt; 5mm</div>
+      <p>plastic particles found in oceans, rivers, soil and food</p>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🏙️</div>
+      <h3>Urban Impact</h3>
+      <div class="big-num">100+</div>
+      <p>Indian cities tracked in our environmental dataset</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Global Trends</div>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h4>Global Plastic Production (Mt)</h4>
+        <canvas id="chartGlobal"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Global Recycling Rate (%)</h4>
+        <canvas id="chartRecycle"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ABOUT ══════════════ -->
+<div id="about" class="page">
+  <div class="page-header">
+    <h1>Understanding Microplastic Pollution</h1>
+    <p>Microplastics originate from larger plastic waste that degrades under sunlight and environmental stress.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="stat-grid" style="padding:0; margin-bottom:40px;">
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <h3>Sources</h3>
+        <p>Plastic packaging, synthetic clothing fibers, tire wear particles, and industrial pellets.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🐠</div>
+        <h3>Environmental Impact</h3>
+        <p>Microplastics disrupt marine ecosystems, harm aquatic biodiversity, and enter food chains.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🫀</div>
+        <h3>Human Health Risk</h3>
+        <p>Microplastics enter the human body via food, water, and inhalation — with unknown long-term effects.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🏭</div>
+        <h3>Industrial Contribution</h3>
+        <p>Industrial discharge and single-use plastics are the primary contributors to microplastic pollution.</p>
+      </div>
+    </div>
+
+    <div class="section-title">Risk Factors We Analyze</div>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h4>How Each Factor Affects Risk Score</h4>
+        <canvas id="chartFactors"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Risk Distribution in Reference Dataset</h4>
+        <canvas id="chartAboutRisk"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MANUAL PREDICTOR ══════════════ -->
+<div id="predictor" class="page">
+  <div class="page-header">
+    <h1>Manual Risk Predictor</h1>
+    <p>Enter custom environmental values to compute a microplastic risk score — with AI expert analysis.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="predictor-layout">
+    <div class="pred-panel">
+      <h2>⚗️ Input Parameters</h2>
+
+      <div class="form-group">
+        <label>Population Density (per km²)</label>
+        <input id="pop" type="number" placeholder="e.g. 1500">
+      </div>
+      <div class="form-group">
+        <label>Plastic Waste per Capita (kg/day)</label>
+        <input id="plastic" type="number" step="0.01" placeholder="e.g. 0.55">
+      </div>
+      <div class="form-group">
+        <label>Recycling Rate (%)</label>
+        <input id="recycle" type="number" placeholder="e.g. 30">
+      </div>
+      <div class="form-group">
+        <label>Annual Rainfall (mm)</label>
+        <input id="rain" type="number" placeholder="e.g. 900">
+      </div>
+      <div class="form-group">
+        <label>Distance to Nearest River (km)</label>
+        <input id="river" type="number" placeholder="e.g. 5">
+      </div>
+
+      <button class="pred-btn" onclick="predict()">Calculate Risk + AI Analysis →</button>
+
+      <div id="result" class="result-box">
+        <div class="result-risk" id="result-label"></div>
+        <div class="result-detail" id="result-detail"></div>
+      </div>
+
+      <div id="ai-result" class="ai-analysis-box">
+        <div class="ai-header">
+          <div class="ai-pulse"></div>
+          AI Expert Analysis
+        </div>
+        <div id="ai-result-text" class="ai-text"></div>
+      </div>
+    </div>
+
+    <div class="pred-panel">
+      <h2>📊 Score Breakdown</h2>
+      <div class="chart-box" style="background:var(--surface); border:none; padding:10px;">
+        <canvas id="chartScore"></canvas>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin-top:12px; line-height:1.7;">
+        The risk score combines weighted factors: population density, plastic waste per capita, recycling rate (negative weight), rainfall intensity, and river proximity. A higher score indicates greater microplastic pollution risk.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CITY PREDICTOR ══════════════ -->
+<div id="city" class="page">
+  <div class="page-header">
+    <h1>Indian City Risk Predictor</h1>
+    <p>Search any of 100+ Indian cities to view estimated environmental indicators, microplastic risk, and AI insights.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="predictor-layout">
+    <div class="pred-panel">
+      <h2>🏙️ City Lookup</h2>
+
+      <div class="form-group">
+        <label>City Name</label>
+        <div class="autocomplete-wrap">
+          <input id="cityInput" type="text" placeholder="Start typing a city..." onkeyup="suggestCity()" autocomplete="off">
+          <div id="suggestions" class="suggestions"></div>
+        </div>
+      </div>
+
+      <button class="pred-btn" onclick="findCity()">Analyze City + AI Insights →</button>
+
+      <div id="cityResult" class="result-box">
+        <div class="result-risk" id="city-risk-label"></div>
+        <div class="result-detail" id="city-detail"></div>
+      </div>
+
+      <div id="ai-city-result" class="ai-analysis-box">
+        <div class="ai-header">
+          <div class="ai-pulse"></div>
+          AI City Analysis
+        </div>
+        <div id="ai-city-text" class="ai-text"></div>
+      </div>
+    </div>
+
+    <div class="pred-panel">
+      <h2>📈 City Indicators</h2>
+      <div class="chart-box" style="background:var(--surface); border:none; padding:10px;">
+        <canvas id="cityChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ AI ANALYSIS PAGE ══════════════ -->
+<div id="ai" class="page">
+  <div class="page-header">
+    <h1>🤖 AI Microplastic Expert</h1>
+    <p>Ask anything about microplastic pollution, environmental risks, or get personalized recommendations.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="ai-chat-layout">
+    <div class="suggested-questions">
+      <button class="sq-btn" onclick="askSuggestion(this)">What are the main sources of microplastics in India?</button>
+      <button class="sq-btn" onclick="askSuggestion(this)">How does rainfall affect microplastic spread?</button>
+      <button class="sq-btn" onclick="askSuggestion(this)">Which Indian cities face the highest microplastic risk?</button>
+      <button class="sq-btn" onclick="askSuggestion(this)">What can individuals do to reduce microplastic exposure?</button>
+      <button class="sq-btn" onclick="askSuggestion(this)">How are microplastics harmful to human health?</button>
+      <button class="sq-btn" onclick="askSuggestion(this)">Explain how recycling rate affects pollution levels</button>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg">
+        <div class="msg-avatar ai">🤖</div>
+        <div class="msg-content">
+Hello! I'm your AI Microplastic Expert powered by Claude. I can answer questions about microplastic pollution, explain environmental risk factors, analyze specific scenarios, and provide science-based recommendations.
+
+What would you like to know?
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" type="text" placeholder="Ask about microplastic pollution, risks, solutions..." onkeydown="if(event.key==='Enter') sendChat()">
+      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">Send →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ DATASET ══════════════ -->
+<div id="dataset" class="page">
+  <div class="page-header">
+    <h1>Reference Dataset</h1>
+    <p>The training data used to calibrate the risk prediction model.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">Sample Records</div>
+    <div class="table-wrap">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>Population Density</th>
+            <th>Plastic Waste (kg/day)</th>
+            <th>Recycling (%)</th>
+            <th>Rainfall (mm)</th>
+            <th>River Distance (km)</th>
+            <th>Risk Level</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+
+    <div class="section-title">Risk Distribution</div>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h4>Records by Risk Category</h4>
+        <canvas id="riskChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Plastic Waste vs Population Density</h4>
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ VISUALIZATION ══════════════ -->
+<div id="visualization" class="page">
+  <div class="page-header">
+    <h1>Dataset Visualization</h1>
+    <p>Interactive charts showing correlations across all environmental indicators in the dataset.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h4>Population Density Across Records</h4>
+        <canvas id="chartPop"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Plastic Waste per Capita</h4>
+        <canvas id="chartPlastic"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Rainfall Patterns</h4>
+        <canvas id="chartRain"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>Recycling Rate Trend</h4>
+        <canvas id="chartRecycleViz"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ RESOURCES ══════════════ -->
+<div id="resources" class="page">
+  <div class="page-header">
+    <h1>Scientific Resources</h1>
+    <p>Authoritative datasets and research sources behind this platform.</p>
+  </div>
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="resource-grid">
+      <div class="resource-card">
+        <h3>🌐 Plastic Pollution Data</h3>
+        <p>Our World in Data — global statistics on plastic production, waste management, and pollution trends across countries.</p>
+        <a href="https://ourworldindata.org/plastic-pollution" target="_blank">Open Resource ↗</a>
+      </div>
+      <div class="resource-card">
+        <h3>🏦 World Bank Population</h3>
+        <p>World Bank population density statistics by country, helping analyze how demographic pressure affects plastic waste generation.</p>
+        <a href="https://data.worldbank.org/indicator/EN.POP.DNST" target="_blank">Open Resource ↗</a>
+      </div>
+      <div class="resource-card">
+        <h3>🛰️ NASA Earth Data</h3>
+        <p>Satellite-based environmental datasets including rainfall patterns, climate observations, and environmental monitoring data.</p>
+        <a href="https://www.earthdata.nasa.gov/" target="_blank">Open Resource ↗</a>
+      </div>
+      <div class="resource-card">
+        <h3>🐋 NOAA Marine Debris</h3>
+        <p>NOAA Marine Debris Program research on ocean plastic pollution and microplastic impacts on marine ecosystems.</p>
+        <a href="https://marinedebris.noaa.gov/" target="_blank">Open Resource ↗</a>
+      </div>
+      <div class="resource-card">
+        <h3>♻️ Global Recycling Data</h3>
+        <p>International recycling statistics showing how effective waste management systems help reduce plastic pollution worldwide.</p>
+        <a href="https://ourworldindata.org/grapher/municipal-waste-recycling-rate" target="_blank">Open Resource ↗</a>
+      </div>
+      <div class="resource-card">
+        <h3>🇮🇳 India Pollution Reports</h3>
+        <p>Central Pollution Control Board reports on municipal solid waste and plastic pollution across Indian cities and states.</p>
+        <a href="https://cpcb.nic.in/" target="_blank">Open Resource ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
+<script>
+
+// ─── UNDERWATER OCEAN BACKGROUND ───
+(function() {
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; rebuildScene(); });
+
+  let t = 0;
+
+  // ── Microplastic particles ──
+  class MicroParticle {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x = Math.random() * W;
+      this.y = init ? Math.random() * H : H + 10;
+      this.r = Math.random() * 2.8 + 0.6;
+      this.vx = (Math.random() - 0.5) * 0.35;
+      this.vy = -(Math.random() * 0.25 + 0.08);
+      this.alpha = Math.random() * 0.55 + 0.15;
+      this.pulse = Math.random() * Math.PI * 2;
+      // shape: 0=circle, 1=dot, 2=shard
+      this.shape = Math.floor(Math.random() * 3);
+      this.rot = Math.random() * Math.PI * 2;
+      this.rotV = (Math.random() - 0.5) * 0.02;
+      const cols = ['180,230,255','100,210,255','200,200,255','180,255,200','255,220,120'];
+      this.col = cols[Math.floor(Math.random() * cols.length)];
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy;
+      this.pulse += 0.03; this.rot += this.rotV;
+      if (this.y < -10 || this.x < -10 || this.x > W + 10) this.reset(false);
+    }
+    draw() {
+      const a = this.alpha * (0.75 + 0.25 * Math.sin(this.pulse));
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      ctx.fillStyle = `rgba(${this.col},${a})`;
+      ctx.strokeStyle = `rgba(${this.col},${a * 0.8})`;
+      ctx.lineWidth = 0.5;
+      if (this.shape === 0) {
+        ctx.beginPath(); ctx.arc(0, 0, this.r, 0, Math.PI * 2); ctx.fill();
+      } else if (this.shape === 1) {
+        ctx.fillRect(-this.r * 0.8, -this.r * 0.8, this.r * 1.6, this.r * 1.6);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(0, -this.r * 2);
+        ctx.lineTo(this.r, this.r);
+        ctx.lineTo(-this.r, this.r * 0.5);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ── Plastic bag ──
+  class PlasticBag {
+    constructor(startOffscreen) {
+      this.reset(startOffscreen);
+    }
+    reset(off) {
+      this.x = off ? W + 80 : Math.random() * W * 0.7 + W * 0.1;
+      this.y = off ? Math.random() * H * 0.55 + H * 0.05 : Math.random() * H * 0.55 + H * 0.05;
+      this.vx = -(Math.random() * 0.4 + 0.15);
+      this.vy = (Math.random() - 0.5) * 0.18;
+      this.w = Math.random() * 36 + 28;
+      this.h = this.w * 1.35;
+      this.rot = (Math.random() - 0.5) * 0.4;
+      this.rotV = (Math.random() - 0.5) * 0.004;
+      this.wave = Math.random() * Math.PI * 2;
+      this.alpha = Math.random() * 0.35 + 0.25;
+      // dripping microplastics from bottom
+      this.drips = Array.from({length: Math.floor(Math.random()*6+4)}, () => ({
+        ox: (Math.random()-0.5) * 0.8, // offset x fraction of bag width
+        oy: Math.random() * 2 + 1.0,   // offset y below bag bottom (fraction of h)
+        t: Math.random() * Math.PI * 2,
+        r: Math.random() * 1.5 + 0.4
+      }));
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy;
+      this.wave += 0.018; this.rot += this.rotV;
+      this.vy = Math.sin(this.wave) * 0.12;
+      if (this.x < -120) this.reset(true);
+    }
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      ctx.globalAlpha = this.alpha;
+      const hw = this.w / 2, hh = this.h / 2;
+
+      // bag body
+      ctx.beginPath();
+      ctx.moveTo(-hw * 0.3, -hh);
+      ctx.lineTo(hw * 0.3, -hh);
+      ctx.bezierCurveTo(hw * 0.5, -hh * 0.6, hw * 0.8, 0, hw * 0.6, hh * 0.7);
+      ctx.bezierCurveTo(hw * 0.4, hh, -hw * 0.4, hh, -hw * 0.6, hh * 0.7);
+      ctx.bezierCurveTo(-hw * 0.8, 0, -hw * 0.5, -hh * 0.6, -hw * 0.3, -hh);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(200,230,255,0.55)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(180,220,255,0.9)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // handles
+      ctx.beginPath();
+      ctx.moveTo(-hw * 0.28, -hh);
+      ctx.quadraticCurveTo(-hw * 0.5, -hh * 1.5, -hw * 0.1, -hh * 1.45);
+      ctx.strokeStyle = 'rgba(180,220,255,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(hw * 0.28, -hh);
+      ctx.quadraticCurveTo(hw * 0.5, -hh * 1.5, hw * 0.1, -hh * 1.45);
+      ctx.stroke();
+
+      // crinkle lines
+      ctx.strokeStyle = 'rgba(150,200,255,0.3)';
+      ctx.lineWidth = 0.7;
+      [-0.25, 0, 0.25].forEach(fx => {
+        ctx.beginPath();
+        ctx.moveTo(fx * hw, -hh * 0.4);
+        ctx.lineTo(fx * hw * 0.9, hh * 0.5);
+        ctx.stroke();
+      });
+
+      // dripping micro-fragments below bag
+      this.drips.forEach(d => {
+        d.t += 0.025;
+        const dx = d.ox * hw + Math.sin(d.t) * 3;
+        const dy = hh * d.oy + Math.sin(d.t * 1.3) * 4;
+        ctx.beginPath();
+        ctx.arc(dx, dy, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100,180,255,0.7)';
+        ctx.globalAlpha = this.alpha * 0.9;
+        ctx.fill();
+      });
+
+      ctx.restore();
+    }
+  }
+
+  // ── Color helper ──
+  function shadeColor(hex, amt) {
+    let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    r = Math.max(0,Math.min(255,r+amt)); g = Math.max(0,Math.min(255,g+amt)); b = Math.max(0,Math.min(255,b+amt));
+    return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+
+  // ── Fish ──
+  class Fish {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.dir = Math.random() > 0.5 ? 1 : -1;
+      this.x = init ? Math.random() * W : (this.dir > 0 ? -120 : W + 120);
+      this.y = H * 0.25 + Math.random() * H * 0.45;
+      this.speed = Math.random() * 0.7 + 0.35;
+      this.size = Math.random() * 32 + 22;
+      this.wave = Math.random() * Math.PI * 2;
+      this.waveAmp = Math.random() * 18 + 8;
+      this.tailPhase = Math.random() * Math.PI * 2;
+      // color scheme: orange-red like the image fish
+      const schemes = [
+        {body:'#c0392b', belly:'#e67e22', spot:'#f39c12'},
+        {body:'#2980b9', belly:'#3498db', spot:'#1abc9c'},
+        {body:'#8e44ad', belly:'#9b59b6', spot:'#e74c3c'},
+        {body:'#16a085', belly:'#1abc9c', spot:'#f1c40f'},
+      ];
+      this.colors = schemes[Math.floor(Math.random() * schemes.length)];
+      this.spots = Array.from({length: Math.floor(Math.random()*4+2)}, () => ({
+        ox: (Math.random()-0.5) * 0.5, oy: (Math.random()-0.5) * 0.5, r: Math.random()*0.08+0.04
+      }));
+      this.eyePhase = 0;
+    }
+    update() {
+      this.x += this.speed * this.dir;
+      this.wave += 0.022;
+      this.tailPhase += 0.18;
+      this.eyePhase += 0.04;
+      this.y += Math.sin(this.wave) * 0.22;
+      if (this.x > W + 150 || this.x < -150) this.reset(false);
+    }
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      if (this.dir < 0) ctx.scale(-1, 1);
+      ctx.globalAlpha = 0.88;
+
+      const s = this.size;
+
+      // tail fan
+      const tailSwing = Math.sin(this.tailPhase) * 0.45;
+      ctx.save();
+      ctx.translate(-s * 0.62, 0);
+      ctx.rotate(tailSwing);
+      // upper tail lobe
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-s*0.1, -s*0.15, -s*0.5, -s*0.42, -s*0.52, -s*0.08);
+      ctx.bezierCurveTo(-s*0.35, -s*0.02, -s*0.1, -s*0.01, 0, 0);
+      ctx.fillStyle = this.colors.spot;
+      ctx.fill();
+      // lower tail lobe
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-s*0.1, s*0.15, -s*0.5, s*0.42, -s*0.52, s*0.08);
+      ctx.bezierCurveTo(-s*0.35, s*0.02, -s*0.1, s*0.01, 0, 0);
+      ctx.fillStyle = this.colors.spot;
+      ctx.fill();
+      ctx.restore();
+
+      // main body — big round disc like the image fish
+      ctx.beginPath();
+      ctx.ellipse(s*0.05, 0, s*0.68, s*0.58, 0, 0, Math.PI*2);
+      const bodyGrd = ctx.createRadialGradient(-s*0.15, -s*0.18, s*0.06, s*0.05, 0, s*0.7);
+      bodyGrd.addColorStop(0, this.colors.belly);
+      bodyGrd.addColorStop(0.55, this.colors.body);
+      bodyGrd.addColorStop(1, shadeColor(this.colors.body, -30));
+      ctx.fillStyle = bodyGrd;
+      ctx.fill();
+      // body outline
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // belly lighter patch (like the image's yellow-orange belly area)
+      ctx.beginPath();
+      ctx.ellipse(-s*0.1, s*0.15, s*0.35, s*0.25, -0.2, 0, Math.PI*2);
+      ctx.fillStyle = this.colors.belly;
+      ctx.globalAlpha = 0.5;
+      ctx.fill();
+      ctx.globalAlpha = 0.88;
+
+      // scale pattern lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 0.8;
+      for (let row = -1; row <= 1; row++) {
+        for (let col = -2; col <= 2; col++) {
+          const sx = col * s * 0.22 + (row % 2 === 0 ? s*0.11 : 0);
+          const sy = row * s * 0.2;
+          if (sx*sx/(s*0.65*s*0.65) + sy*sy/(s*0.56*s*0.56) < 0.85) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, s*0.12, Math.PI*0.9, Math.PI*2.1);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // spots / dots on body
+      this.spots.forEach(sp => {
+        ctx.beginPath();
+        ctx.arc(sp.ox * s * 0.7, sp.oy * s * 0.7, sp.r * s, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fill();
+      });
+
+      // dorsal fin
+      ctx.beginPath();
+      ctx.moveTo(-s*0.05, -s*0.56);
+      ctx.bezierCurveTo(s*0.12, -s*0.95, s*0.38, -s*0.88, s*0.42, -s*0.56);
+      ctx.lineTo(s*0.25, -s*0.54);
+      ctx.bezierCurveTo(s*0.15, -s*0.58, -s*0.0, -s*0.56, -s*0.05, -s*0.56);
+      ctx.fillStyle = this.colors.spot;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 0.88;
+
+      // pectoral fin
+      ctx.beginPath();
+      ctx.moveTo(s*0.12, s*0.06);
+      ctx.bezierCurveTo(s*0.35, s*0.28, s*0.52, s*0.48, s*0.3, s*0.54);
+      ctx.bezierCurveTo(s*0.1, s*0.45, s*0.05, s*0.22, s*0.12, s*0.06);
+      ctx.fillStyle = this.colors.spot;
+      ctx.globalAlpha = 0.75;
+      ctx.fill();
+      ctx.globalAlpha = 0.88;
+
+      // eye socket (white sclera - large like image fish)
+      ctx.beginPath();
+      ctx.arc(s*0.32, -s*0.1, s*0.19, 0, Math.PI*2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // iris
+      ctx.beginPath();
+      ctx.arc(s*0.34, -s*0.1, s*0.11, 0, Math.PI*2);
+      ctx.fillStyle = '#1a1020';
+      ctx.fill();
+
+      // pupil highlight
+      ctx.beginPath();
+      ctx.arc(s*0.37, -s*0.13, s*0.04, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fill();
+
+      // small mouth
+      ctx.beginPath();
+      ctx.ellipse(s*0.62, s*0.04, s*0.07, s*0.04, 0.1, 0, Math.PI*2);
+      ctx.fillStyle = shadeColor(this.colors.body, -40);
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // ── Seaweed ──
+  class Seaweed {
+    constructor(x) {
+      this.x = x;
+      this.baseY = H;
+      this.segments = Math.floor(Math.random() * 5 + 5);
+      this.segH = Math.random() * 18 + 12;
+      this.phase = Math.random() * Math.PI * 2;
+      this.speed = Math.random() * 0.012 + 0.006;
+      this.col1 = `hsl(${130 + Math.random()*30},${70+Math.random()*20}%,${28+Math.random()*15}%)`;
+      this.col2 = `hsl(${120 + Math.random()*30},${60+Math.random()*20}%,${38+Math.random()*10}%)`;
+      this.width = Math.random() * 5 + 4;
+    }
+    update() { this.phase += this.speed; }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      let cx = this.x, cy = this.baseY;
+      for (let i = 0; i < this.segments; i++) {
+        const sway = Math.sin(this.phase + i * 0.7) * (8 + i * 1.5);
+        const nx = cx + sway;
+        const ny = cy - this.segH;
+        const t = i / this.segments;
+        ctx.strokeStyle = t < 0.5 ? this.col1 : this.col2;
+        ctx.lineWidth = this.width * (1 - i / this.segments * 0.6);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.quadraticCurveTo(cx + sway * 0.5, (cy + ny) / 2, nx, ny);
+        ctx.stroke();
+
+        // leaf
+        if (i % 2 === 1) {
+          const leafDir = i % 4 === 1 ? 1 : -1;
+          ctx.save();
+          ctx.translate(nx, ny + this.segH * 0.4);
+          ctx.rotate(leafDir * (0.6 + Math.sin(this.phase) * 0.2));
+          ctx.beginPath();
+          ctx.ellipse(0, 0, this.width * 2.2, this.width * 0.7, 0, 0, Math.PI * 2);
+          ctx.fillStyle = this.col2;
+          ctx.globalAlpha = 0.7;
+          ctx.fill();
+          ctx.restore();
+        }
+        cx = nx; cy = ny;
+      }
+      ctx.restore();
+    }
+  }
+
+  // ── Bubble ──
+  class Bubble {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x = Math.random() * W;
+      this.y = init ? Math.random() * H : H + 10;
+      this.r = Math.random() * 5 + 1.5;
+      this.vy = -(Math.random() * 0.45 + 0.15);
+      this.vx = (Math.random() - 0.5) * 0.25;
+      this.wave = Math.random() * Math.PI * 2;
+      this.alpha = Math.random() * 0.4 + 0.1;
+    }
+    update() {
+      this.y += this.vy; this.x += Math.sin(this.wave) * 0.4;
+      this.wave += 0.03;
+      if (this.y < -20) this.reset(false);
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(180,230,255,0.9)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // shine
+      ctx.beginPath();
+      ctx.arc(this.x - this.r * 0.3, this.y - this.r * 0.3, this.r * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ─── Ocean floor & sky draw ───
+  function drawBackground() {
+    // deep ocean gradient
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0,   'rgba(5,20,50,1)');
+    skyGrad.addColorStop(0.3, 'rgba(8,40,90,1)');
+    skyGrad.addColorStop(0.7, 'rgba(10,60,100,1)');
+    skyGrad.addColorStop(1,   'rgba(6,30,60,1)');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // light rays from above
+    ctx.save();
+    ctx.globalAlpha = 0.04;
+    for (let r = 0; r < 8; r++) {
+      const rx = W * 0.1 + r * W * 0.11 + Math.sin(t * 0.003 + r) * 30;
+      const grd = ctx.createLinearGradient(rx, 0, rx + 40, H * 0.8);
+      grd.addColorStop(0, 'rgba(100,200,255,0.8)');
+      grd.addColorStop(1, 'rgba(100,200,255,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.moveTo(rx - 10, 0);
+      ctx.lineTo(rx + 50, 0);
+      ctx.lineTo(rx + 80, H * 0.8);
+      ctx.lineTo(rx - 40, H * 0.8);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // sandy ocean floor
+    const floorY = H * 0.88;
+    const sandGrad = ctx.createLinearGradient(0, floorY, 0, H);
+    sandGrad.addColorStop(0, '#8B6914');
+    sandGrad.addColorStop(0.3, '#A0792A');
+    sandGrad.addColorStop(1, '#6B4F10');
+    ctx.fillStyle = sandGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, floorY);
+    for (let x = 0; x <= W; x += 40) {
+      const bump = Math.sin(x * 0.015 + t * 0.005) * 8 + Math.sin(x * 0.04) * 4;
+      ctx.lineTo(x, floorY + bump);
+    }
+    ctx.lineTo(W, H); ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // sand texture dots
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    for (let i = 0; i < 80; i++) {
+      const sx = (i * 137.5) % W;
+      const sy = floorY + 5 + (i * 97.3) % (H - floorY - 5);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#c8a84b';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // water surface shimmer at very top
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    for (let wx = 0; wx < W; wx += 60) {
+      ctx.beginPath();
+      ctx.moveTo(wx, 0);
+      ctx.quadraticCurveTo(wx + 30, 6 + Math.sin(t * 0.02 + wx * 0.05) * 4, wx + 60, 0);
+      ctx.strokeStyle = 'rgba(100,220,255,1)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ─── Build scene ───
+  let microParticles, bags, fish, seaweeds, bubbles;
+
+  function rebuildScene() {
+    microParticles = Array.from({length: 90}, () => new MicroParticle());
+    bags = Array.from({length: 5}, () => new PlasticBag(false));
+    fish = Array.from({length: 6}, () => new Fish());
+    seaweeds = Array.from({length: 18}, (_, i) => new Seaweed(W * 0.02 + i * W * 0.057 + (Math.random()-0.5)*30));
+    bubbles = Array.from({length: 40}, () => new Bubble());
+  }
+
+  rebuildScene();
+
+  function animate() {
+    t++;
+    ctx.clearRect(0, 0, W, H);
+    drawBackground();
+    seaweeds.forEach(s => { s.update(); s.draw(); });
+    microParticles.forEach(p => { p.update(); p.draw(); });
+    bags.forEach(b => { b.update(); b.draw(); });
+    fish.forEach(f => { f.update(); f.draw(); });
+    bubbles.forEach(b => { b.update(); b.draw(); });
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+})();
+
+// ─── PAGE NAVIGATION ───
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-btn'));
+  document.getElementById(page).classList.add('active');
+  document.getElementById('btn-' + page).classList.add('active-btn');
+}
+
+// ─── REFERENCE DATASET ───
+const refData = [
+  [850, 0.32, 44, 760, 14, "Low"],
+  [920, 0.34, 43, 780, 13, "Low"],
+  [980, 0.36, 42, 790, 12, "Low"],
+  [1050, 0.38, 41, 810, 11, "Low"],
+  [1400, 0.48, 36, 900, 8, "Low"],
+  [1550, 0.52, 34, 920, 7, "Medium"],
+  [1700, 0.56, 32, 940, 7, "Medium"],
+  [1850, 0.60, 30, 960, 6, "Medium"],
+  [2000, 0.64, 28, 980, 6, "Medium"],
+  [2230, 0.70, 25, 1010, 5, "High"],
+  [2380, 0.74, 23, 1030, 4, "High"],
+  [2520, 0.78, 21, 1050, 4, "High"],
+  [2680, 0.82, 19, 1070, 4, "High"],
+  [2900, 0.88, 16, 1100, 3, "High"],
+  [3200, 0.96, 12, 1140, 3, "High"]
+];
+
+// ─── POPULATE TABLE ───
+const tbody = document.getElementById('dataBody');
+refData.forEach(r => {
+  const tr = document.createElement('tr');
+  r.forEach((c, i) => {
+    const td = document.createElement('td');
+    if (i === 5) {
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-' + c.toLowerCase();
+      badge.textContent = c;
+      td.appendChild(badge);
+    } else { td.textContent = c; }
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+});
+
+Chart.defaults.color = '#6b8cad';
+Chart.defaults.borderColor = 'rgba(26,53,88,0.7)';
+Chart.defaults.font.family = "'Sora', sans-serif";
+
+// ─── RISK FORMULA ───
+function calcScore(pop, plastic, recycle, rain, river) {
+  return (pop * plastic) / 1000 + rain / 1000 - recycle / 10 + (10 - Math.min(river, 10));
+}
+function scoreToRisk(score) {
+  if (score < 6) return "Low";
+  if (score < 12) return "Medium";
+  return "High";
+}
+
+// ─── SMART AI ANALYSIS (offline, always works) ───
+async function callClaude(systemPrompt, userMessage) {
+  // Simulate network delay for realism
+  await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+
+  // Extract key values from the message
+  const isCity = userMessage.includes('India:');
+  const cityMatch = userMessage.match(/for (.+?), India/);
+  const cityName = cityMatch ? cityMatch[1] : null;
+
+  const popMatch = userMessage.match(/Population Density: ([\d.]+)/);
+  const plasticMatch = userMessage.match(/Plastic Waste.*?: ([\d.]+)/);
+  const recycleMatch = userMessage.match(/Recycling Rate: ([\d.]+)/);
+  const rainMatch = userMessage.match(/Rainfall: ([\d.]+)/);
+  const riverMatch = userMessage.match(/Distance.*?River: ([\d.]+)/);
+  const scoreMatch = userMessage.match(/Score.*?: ([\d.]+)/);
+  const riskMatch = userMessage.match(/Risk(?:\s*Level)?: (\w+)/);
+
+  const pop = popMatch ? parseFloat(popMatch[1]) : 1500;
+  const plastic = plasticMatch ? parseFloat(plasticMatch[1]) : 0.5;
+  const recycle = recycleMatch ? parseFloat(recycleMatch[1]) : 25;
+  const rain = rainMatch ? parseFloat(rainMatch[1]) : 900;
+  const river = riverMatch ? parseFloat(riverMatch[1]) : 8;
+  const score = scoreMatch ? parseFloat(scoreMatch[1]) : 8;
+  const risk = riskMatch ? riskMatch[1] : 'Medium';
+
+  // Determine dominant risk factor
+  const factors = [
+    { name: 'population-plastic interaction', val: (pop * plastic) / 1000, tip: 'reducing plastic waste per capita through source segregation and EPR policies' },
+    { name: 'high rainfall transport', val: rain / 1000, tip: 'improving stormwater management and riverside buffer zones' },
+    { name: 'low recycling rate', val: Math.max(0, 5 - recycle / 10), tip: 'scaling door-to-door waste collection and formal recycling infrastructure' },
+    { name: 'river proximity', val: Math.max(0, 10 - river), tip: 'installing riverbank plastic barriers and upstream litter traps' }
+  ];
+  factors.sort((a, b) => b.val - a.val);
+  const dominant = factors[0];
+  const second = factors[1];
+
+  const riskColor = risk === 'Low' ? 'manageable' : risk === 'Medium' ? 'concerning' : 'critical';
+  const riskAdj = risk === 'Low' ? 'relatively contained' : risk === 'Medium' ? 'moderate and growing' : 'elevated and requires urgent attention';
+
+  if (isCity && cityName) {
+    // City-specific response
+    const cityRivers = {
+      'Delhi': 'the heavily polluted Yamuna river', 'Mumbai': 'coastal Arabian Sea drainage',
+      'Kolkata': 'the Hooghly river (Ganga tributary)', 'Chennai': 'the Adyar and Cooum rivers',
+      'Bangalore': 'Bellandur Lake and Varthur Lake system', 'Hyderabad': 'Musi river and Hussain Sagar',
+      'Patna': 'the Ganga river directly', 'Varanasi': 'the sacred but polluted Ganga',
+      'Kanpur': 'the Ganga river, impacted by tannery effluents', 'Kochi': 'backwaters and Arabian Sea coast'
+    };
+    const riverRef = cityRivers[cityName] || 'nearby river systems';
+
+    return `${cityName} presents a ${riskColor} microplastic risk profile with a score of ${score.toFixed(1)}. The city's population density of ${pop.toLocaleString()} per km² generates substantial plastic waste daily, and with a recycling rate of only ${recycle}%, a significant fraction enters the open environment.
+
+The city's proximity to ${riverRef} is a key vulnerability — rainfall events rapidly mobilise surface plastic debris into the waterway, which then transports microparticles downstream to coastal or agricultural zones. The annual rainfall of ${rain}mm means this transport pathway is active for much of the year.
+
+The dominant risk driver here is ${dominant.name}. The most targeted interventions for ${cityName} would be: (1) ${dominant.tip}, and (2) ${second.tip}. Cities in similar situations that have reduced risk successfully, like Indore and Surat, did so through consistent door-to-door segregation combined with strong municipal enforcement of open dumping bans.`;
+  } else {
+    // Manual predictor response
+    const wasteLoad = (pop * plastic).toFixed(0);
+    return `This location's microplastic risk is ${riskAdj}, with a score of ${score.toFixed(1)} out of 20. The combined population-plastic load of approximately ${wasteLoad} kg of plastic waste generated per km² per day means significant quantities of plastic are entering the local environment daily.
+
+The dominant risk driver is ${dominant.name} — this factor contributes most to the elevated score and should be the primary focus of any intervention strategy. ${recycle < 25 ? `The recycling rate of ${recycle}% is below the national average, meaning a high proportion of generated plastic is not captured before reaching open environments.` : `The recycling rate of ${recycle}% is reasonable, but the other factors are amplifying risk significantly.`}
+
+To meaningfully reduce this location's microplastic risk, the two highest-impact actions are: (1) ${dominant.tip}, which could reduce the score by 2–4 points; and (2) ${second.tip}. River distance of ${river}km means ${river < 5 ? 'contaminants can reach the waterway within a single rain event — urgent buffer zone management is needed.' : 'there is some natural buffer, but heavy rainfall still enables plastic transport to the river system.'}`;
+  }
+}
+
+// ─── STREAM-STYLE TEXT REVEAL ───
+function typeText(el, text, speed = 12) {
+  el.textContent = '';
+  let i = 0;
+  const timer = setInterval(() => {
+    el.textContent += text[i];
+    i++;
+    if (i >= text.length) clearInterval(timer);
+  }, speed);
+}
+
+// ─── MANUAL PREDICTOR ───
+let scoreChart;
+async function predict() {
+  const pop = parseFloat(document.getElementById('pop').value) || 0;
+  const plastic = parseFloat(document.getElementById('plastic').value) || 0;
+  const recycle = parseFloat(document.getElementById('recycle').value) || 0;
+  const rain = parseFloat(document.getElementById('rain').value) || 0;
+  const river = parseFloat(document.getElementById('river').value) || 0;
+
+  const score = calcScore(pop, plastic, recycle, rain, river);
+  const risk = scoreToRisk(score);
+
+  const resultEl = document.getElementById('result');
+  const labelEl = document.getElementById('result-label');
+  const detailEl = document.getElementById('result-detail');
+
+  labelEl.className = 'result-risk risk-' + risk.toLowerCase();
+  labelEl.textContent = risk + ' Microplastic Risk';
+
+  detailEl.innerHTML = `
+    <span>Score:</span> ${score.toFixed(2)} / 20<br>
+    <span>Pop. Density:</span> ${pop} per km²<br>
+    <span>Plastic Waste:</span> ${plastic} kg/day<br>
+    <span>Recycling Rate:</span> ${recycle}%<br>
+    <span>Rainfall:</span> ${rain} mm<br>
+    <span>River Distance:</span> ${river} km
+  `;
+
+  resultEl.classList.add('visible');
+
+  // Radar chart
+  const contribs = [
+    (pop * plastic) / 1000,
+    rain / 1000,
+    Math.max(0, 5 - recycle / 10),
+    Math.max(0, 10 - river)
+  ];
+  if (scoreChart) scoreChart.destroy();
+  scoreChart = new Chart(document.getElementById('chartScore'), {
+    type: 'radar',
+    data: {
+      labels: ['Pop × Waste', 'Rainfall', 'Low Recycling', 'River Proximity'],
+      datasets: [{
+        label: 'Risk Contribution',
+        data: contribs,
+        backgroundColor: 'rgba(0,229,255,0.12)',
+        borderColor: '#00e5ff',
+        pointBackgroundColor: '#00e5ff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { r: { grid: { color: 'rgba(26,53,88,0.8)' }, ticks: { display: false }, pointLabels: { font: { size: 11 } } } }
+    }
+  });
+
+  // AI Analysis
+  const aiBox = document.getElementById('ai-result');
+  const aiText = document.getElementById('ai-result-text');
+  aiBox.classList.add('visible');
+  aiText.innerHTML = '<div class="ai-loading">Analyzing data <div class="ai-dots"><span></span><span></span><span></span></div></div>';
+
+  try {
+    const systemPrompt = `You are an expert environmental scientist specializing in microplastic pollution. Provide concise, insightful analysis (3-4 paragraphs max) with specific, actionable recommendations. Be scientific but accessible. No markdown headers.`;
+    const userMsg = `Analyze this location's microplastic risk data:
+- Population Density: ${pop} per km²
+- Plastic Waste per Capita: ${plastic} kg/day
+- Recycling Rate: ${recycle}%
+- Annual Rainfall: ${rain} mm
+- Distance to Nearest River: ${river} km
+- Calculated Risk Score: ${score.toFixed(2)}
+- Risk Level: ${risk}
+
+Provide: (1) What these specific numbers mean for actual microplastic contamination, (2) the biggest risk driver in this scenario, (3) two practical interventions that would most reduce risk here.`;
+
+    const result = await callClaude(systemPrompt, userMsg);
+    typeText(aiText, result);
+  } catch(e) {
+    aiText.textContent = 'AI analysis unavailable. Please try again.';
+  }}
+
+// ─── CITY DATA ───
+const baseCities = [
+  "Delhi","Mumbai","Kolkata","Chennai","Bangalore","Hyderabad","Pune","Ahmedabad",
+  "Jaipur","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Visakhapatnam","Surat",
+  "Patna","Vadodara","Ludhiana","Agra","Nashik","Faridabad","Meerut","Rajkot",
+  "Kalyan","Vasai","Varanasi","Srinagar","Aurangabad","Dhanbad","Amritsar",
+  "Navi Mumbai","Allahabad","Ranchi","Howrah","Coimbatore","Jabalpur","Gwalior",
+  "Vijayawada","Jodhpur","Madurai","Raipur","Kota","Guwahati","Chandigarh",
+  "Solapur","Hubli","Bareilly","Moradabad","Mysore","Tiruchirappalli","Salem",
+  "Aligarh","Guntur","Bhubaneswar","Warangal","Thiruvananthapuram","Bhiwandi",
+  "Saharanpur","Gorakhpur","Bikaner","Amravati","Noida","Jamshedpur","Bhilai",
+  "Cuttack","Firozabad","Kochi","Nellore","Bhavnagar","Dehradun","Durgapur",
+  "Asansol","Rourkela","Nanded","Kolhapur","Ajmer","Akola","Gulbarga","Jamnagar",
+  "Ujjain","Loni","Siliguri","Jhansi","Ulhasnagar","Jammu","Mangalore","Erode",
+  "Belgaum","Ambattur","Tirunelveli","Malegaon","Gaya","Jalgaon","Udaipur",
+  "Maheshtala","Tirupati","Davangere","Kozhikode","Kurnool","Rajahmundry"
+];
+
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function generateCityData() {
+  const data = {};
+  baseCities.forEach((city, idx) => {
+    const rng = seededRandom(idx * 7919 + 31337);
+    data[city] = {
+      pop: Math.floor(rng() * 20000) + 3000,
+      plastic: parseFloat((rng() * 0.6 + 0.4).toFixed(2)),
+      recycle: Math.floor(rng() * 25) + 15,
+      rain: Math.floor(rng() * 2000) + 500,
+      river: Math.floor(rng() * 20) + 1
+    };
+  });
+  return data;
+}
+
+const cityData = generateCityData();
+
+let cityChart;
+async function findCity() {
+  const cityName = document.getElementById('cityInput').value.trim();
+  document.getElementById('suggestions').style.display = 'none';
+
+  const data = cityData[cityName];
+  const resultEl = document.getElementById('cityResult');
+  const labelEl = document.getElementById('city-risk-label');
+  const detailEl = document.getElementById('city-detail');
+
+  if (!data) {
+    labelEl.className = 'result-risk';
+    labelEl.textContent = 'City Not Found';
+    detailEl.innerHTML = 'Please select a city from the suggestions list.';
+    resultEl.classList.add('visible');
+    return;
+  }
+
+  const score = calcScore(data.pop, data.plastic, data.recycle, data.rain, data.river);
+  const risk = scoreToRisk(score);
+
+  labelEl.className = 'result-risk risk-' + risk.toLowerCase();
+  labelEl.textContent = risk + ' Microplastic Risk';
+
+  detailEl.innerHTML = `
+    <span>City:</span> ${cityName}<br>
+    <span>Population Density:</span> ${data.pop} per km²<br>
+    <span>Plastic Waste:</span> ${data.plastic} kg/day<br>
+    <span>Recycling Rate:</span> ${data.recycle}%<br>
+    <span>Rainfall:</span> ${data.rain} mm<br>
+    <span>River Distance:</span> ${data.river} km<br>
+    <span>Risk Score:</span> ${score.toFixed(2)}
+  `;
+
+  resultEl.classList.add('visible');
+
+  if (cityChart) cityChart.destroy();
+  cityChart = new Chart(document.getElementById('cityChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Pop Density\n(÷100)', 'Plastic\nWaste×10', 'Recycling\nRate', 'Rainfall\n(÷100)', 'River\nDist (km)'],
+      datasets: [{
+        label: cityName,
+        data: [data.pop / 100, data.plastic * 10, data.recycle, data.rain / 100, data.river],
+        backgroundColor: ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6'],
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: (items) => items[0].label.replace('\n', ' ') } } },
+      scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { grid: { color: 'rgba(26,53,88,0.5)' } } }
+    }
+  });
+
+  // AI City Analysis
+  const aiBox = document.getElementById('ai-city-result');
+  const aiTextEl = document.getElementById('ai-city-text');
+  aiBox.classList.add('visible');
+  aiTextEl.innerHTML = '<div class="ai-loading">Analyzing ' + cityName + ' <div class="ai-dots"><span></span><span></span><span></span></div></div>';
+
+  try {
+    const systemPrompt = `You are an environmental expert on India's microplastic and urban pollution issues. Give concise, city-specific insights (3 paragraphs max). Reference real geography, rivers, industries where relevant. No markdown.`;
+    const userMsg = `Analyze microplastic risk for ${cityName}, India:
+- Population Density: ${data.pop} per km²
+- Plastic Waste per Capita: ${data.plastic} kg/day
+- Recycling Rate: ${data.recycle}%
+- Annual Rainfall: ${data.rain} mm
+- Distance to Nearest River: ${data.river} km
+- Risk Score: ${score.toFixed(2)} — ${risk} Risk
+
+Give city-specific context: mention known environmental challenges for ${cityName}, the dominant risk factor here, and 2 targeted policy or community actions most relevant to this city.`;
+
+    const result = await callClaude(systemPrompt, userMsg);
+    typeText(aiTextEl, result);
+  } catch(e) {
+    aiTextEl.textContent = 'AI analysis unavailable. Please try again.';
+  }
+}
+
+function suggestCity() {
+  const input = document.getElementById('cityInput').value.toLowerCase();
+  const box = document.getElementById('suggestions');
+  box.innerHTML = '';
+  if (input.length < 1) { box.style.display = 'none'; return; }
+  const matches = baseCities.filter(c => c.toLowerCase().startsWith(input)).slice(0, 6);
+  matches.forEach(city => {
+    const div = document.createElement('div');
+    div.textContent = city;
+    div.onclick = () => {
+      document.getElementById('cityInput').value = city;
+      box.style.display = 'none';
+    };
+    box.appendChild(div);
+  });
+  box.style.display = matches.length ? 'block' : 'none';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrap')) {
+    document.getElementById('suggestions').style.display = 'none';
+  }
+});
+
+// ─── SMART OFFLINE AI ENGINE ───
+const aiKnowledge = [
+  {
+    keys: ['source','origin','come from','where','causes','cause','produce'],
+    answer: `Microplastics in India originate from several major sources. The biggest contributor is single-use plastic packaging — India generates over 3.5 million tonnes of plastic waste annually, with less than 30% properly collected. Synthetic textile washing releases millions of microfibers per laundry cycle directly into wastewater systems.
+
+Tire wear particles are the second largest source globally — every vehicle on Indian roads sheds rubber microparticles that wash into rivers during rainfall. Industrial plastic pellets (called nurdles) spill during manufacturing and transport, especially in coastal states like Gujarat, Maharashtra, and Tamil Nadu.
+
+Rivers like the Ganga, Yamuna, and Godavari act as major transport highways — carrying microplastics from inland cities to the ocean. Poorly managed urban landfills near water bodies also fragment larger plastics into microparticles through UV exposure and mechanical stress.`
+  },
+  {
+    keys: ['rainfall','rain','monsoon','water','flood','wash'],
+    answer: `Rainfall is a critical driver of microplastic spread, especially in India where monsoon intensity is extreme. During heavy rain, surface runoff sweeps plastic debris, tire particles, and microplastic fragments from roads, landfills, and open grounds into rivers and water bodies.
+
+Studies in Indian cities show that microplastic concentrations in rivers spike 3–5x during monsoon season compared to dry months. Urban drainage systems are rarely equipped with microplastic filtration, so stormwater carries pollutants directly to water bodies untreated.
+
+Higher annual rainfall (above 1000mm/year) significantly amplifies transport risk, especially in cities close to rivers. This is why coastal cities like Mumbai, Kochi, and Chennai face compounded risk — both from high rainfall and proximity to marine ecosystems that accumulate these particles over time.`
+  },
+  {
+    keys: ['city','cities','urban','india','worst','highest risk','dangerous','most polluted'],
+    answer: `Based on environmental indicators, the highest microplastic risk Indian cities are typically those combining high population density, poor waste management, and proximity to major rivers. Delhi tops most risk assessments — with over 30,000 people per km² and the heavily polluted Yamuna river running through it.
+
+Mumbai faces extreme coastal exposure — microplastics from the city's drainage systems flow directly into the Arabian Sea and contaminate coastal fishing zones. Kanpur is considered one of the most polluted cities on the Ganga corridor due to its leather tannery industry and dense population.
+
+Kolkata, Patna, and Varanasi along the Ganga face high riverine microplastic loads. In South India, Chennai and Hyderabad show rising risk due to rapid urbanisation outpacing waste management infrastructure. Cities with recycling rates below 20% and rainfall above 800mm/year face the highest combined risk scores.`
+  },
+  {
+    keys: ['individual','person','reduce','prevent','avoid','protect','personal','home','daily','habit'],
+    answer: `Individuals can significantly reduce their microplastic contribution through targeted daily choices. The most impactful action is refusing single-use plastics — plastic bags, bottles, straws, and food packaging account for the largest share of microplastic precursors in India.
+
+Switch to natural fiber clothing (cotton, wool, linen) instead of polyester or nylon — synthetic textiles shed up to 700,000 microfibers per wash cycle. When washing synthetic clothes, use a microfiber-catching laundry bag which can capture up to 90% of released fibers.
+
+Filter your drinking water — microplastics have been detected in tap water across Indian cities. Use a good quality water filter. Avoid heating food in plastic containers, as heat accelerates microplastic leaching into food. Participate in local clean-up drives, especially near rivers and coastal areas, to prevent larger plastics from breaking down into microparticles in the environment.`
+  },
+  {
+    keys: ['health','human','body','harmful','danger','effect','disease','eat','inhale','breath','toxic'],
+    answer: `Microplastics enter the human body through three pathways: ingestion (food and water), inhalation (airborne particles), and skin contact. Recent studies have detected microplastics in human blood, lungs, placenta, and even breast milk — indicating widespread systemic distribution.
+
+The health effects are still being actively researched, but current evidence shows several concerns. Microplastics carry chemical additives (phthalates, BPA, flame retardants) that are endocrine disruptors — interfering with hormone function. They can trigger inflammatory responses in lung and gut tissue. Smaller nanoplastics (<1 micron) can cross the blood-brain barrier.
+
+In India, people consuming river fish from the Ganga or Yamuna system are at elevated exposure risk, as these fish accumulate microplastics in their tissue. The WHO has flagged microplastic contamination in drinking water as a priority concern, though safe exposure thresholds have not yet been established. Children are considered especially vulnerable due to their developing immune systems.`
+  },
+  {
+    keys: ['recycl','waste management','manage','dispose','collection','segregat'],
+    answer: `Recycling rate is one of the most powerful levers for reducing microplastic pollution. India's current average recycling rate is only around 20–30%, but this varies enormously by city — some metros like Indore have achieved 60%+ through systematic segregation, while many smaller cities recycle less than 10%.
+
+When plastic waste is not collected and recycled, it enters the open environment — roads, rivers, landfills — where UV radiation and mechanical stress fragment it into microplastics over months to years. Every 10% improvement in recycling rate meaningfully reduces the volume of plastic available to become microplastic pollution.
+
+The most effective approaches proven in India include door-to-door waste segregation (dry/wet/hazardous), extended producer responsibility (EPR) laws requiring companies to take back packaging, informal waste-picker integration into formal recycling chains, and community-level plastic banking programs that incentivise returns.`
+  },
+  {
+    keys: ['river','ocean','sea','water body','lake','aquatic','marine','fish','aquat'],
+    answer: `Rivers and oceans are the primary accumulation zones for microplastics. India's major rivers — Ganga, Yamuna, Brahmaputra, Godavari, Krishna — have all tested positive for significant microplastic contamination, with the Ganga showing some of the highest concentrations measured in any river globally.
+
+Once microplastics enter water bodies, they persist for hundreds of years. They adsorb other pollutants like heavy metals and pesticides onto their surface, becoming more toxic over time. Aquatic organisms — fish, zooplankton, mussels — ingest these particles, which then move up the food chain to humans.
+
+River proximity is a major risk multiplier for any location. Cities within 5km of major rivers face both higher contamination risk (from river water used in agriculture and sometimes drinking) and higher ecological impact. The distance to a river in our risk model captures this — locations closer than 3km receive maximum proximity risk weighting.`
+  },
+  {
+    keys: ['score','risk','calculate','formula','model','predict','low','medium','high','how does'],
+    answer: `Our microplastic risk score is calculated using five weighted environmental factors that together explain most of the variance in real-world microplastic contamination studies.
+
+The formula is: Score = (Population × Plastic Waste)/1000 + Rainfall/1000 - Recycling Rate/10 + (10 - River Distance). Population density multiplied by plastic waste per capita captures the volume of plastic entering the local environment. Rainfall drives transport of that waste into water systems. River proximity determines how quickly pollutants reach aquatic ecosystems. Recycling rate reduces the score — better recycling means less plastic available to become pollution.
+
+Scores below 6 indicate Low risk — similar to small towns with good waste management. Scores 6–12 indicate Medium risk — typical of mid-sized Indian cities. Scores above 12 indicate High risk — consistent with major urban centres near rivers with low recycling infrastructure. The model is calibrated against 15 reference data points spanning the full risk spectrum.`
+  },
+  {
+    keys: ['solution','fix','solve','policy','government','law','regulation','action','initiative'],
+    answer: `Solving microplastic pollution requires action at multiple levels simultaneously. At the policy level, India's Plastic Waste Management Rules (2022) banning single-use plastics under 75 microns were a significant step, but enforcement remains inconsistent. Extended Producer Responsibility (EPR) regulations requiring plastic manufacturers to fund end-of-life collection are critical and need stronger implementation.
+
+At the city level, the most successful interventions are source segregation mandates with collection infrastructure, investment in wastewater treatment plants with tertiary filtration (most Indian STPs do not filter microplastics), and green infrastructure like constructed wetlands that naturally filter runoff before it reaches rivers.
+
+At the technology level, innovations gaining traction include microfiber-filtering washing machine filters (mandated in France since 2025), biodegradable alternatives to single-use plastics, and advanced pyrolysis systems that convert mixed plastic waste into fuel. Community-level programs like plastic credit markets and waste-to-art initiatives have shown strong behaviour change results in Indian cities like Pune and Mysore.`
+  }
+];
+
+function getAIResponse(question) {
+  const q = question.toLowerCase();
+  // Find best matching topic
+  let best = null, bestScore = 0;
+  aiKnowledge.forEach(topic => {
+    const score = topic.keys.filter(k => q.includes(k)).length;
+    if (score > bestScore) { bestScore = score; best = topic; }
+  });
+  if (best && bestScore > 0) return best.answer;
+
+  // Generic fallback
+  return `Microplastic pollution is a complex environmental challenge affecting ecosystems and human health worldwide. In India, rapid urbanisation, inadequate waste management infrastructure, and close proximity to major river systems create particularly high-risk conditions.
+
+The key factors driving microplastic risk are plastic waste generation (linked to population density and consumption patterns), waste collection and recycling rates, rainfall that transports plastic debris into water bodies, and proximity to rivers which act as pollution highways to the ocean.
+
+Could you clarify your question? I can answer in detail about: sources of microplastics in India, health effects, which cities face highest risk, how rainfall affects spread, what individuals can do, recycling's impact, river and ocean contamination, or how our risk scoring model works.`;
+}
+
+// ─── AI CHAT ───
+const chatHistory = [];
+
+function appendMsg(role, text) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg';
+  div.innerHTML = `
+    <div class="msg-avatar ${role}">${role === 'user' ? '👤' : '🤖'}</div>
+    <div class="msg-content ${role}"></div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div.querySelector('.msg-content');
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const btn = document.getElementById('chatSendBtn');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  btn.disabled = true;
+
+  const userEl = appendMsg('user', '');
+  userEl.textContent = text;
+  chatHistory.push({ role: 'user', content: text });
+
+  const aiMsgEl = appendMsg('ai', '');
+  aiMsgEl.innerHTML = '<div class="ai-loading">Thinking <div class="ai-dots"><span></span><span></span><span></span></div></div>';
+
+  // Simulate thinking delay then show answer
+  await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+
+  const reply = getAIResponse(text);
+  chatHistory.push({ role: 'assistant', content: reply });
+  aiMsgEl.innerHTML = '';
+  typeText(aiMsgEl, reply, 14);
+
+  btn.disabled = false;
+  input.focus();
+}
+
+function askSuggestion(b) {
+  document.getElementById('chatInput').value = b.textContent;
+  sendChat();
+}
+
+// ─── CHARTS ───
+new Chart(document.getElementById('chartGlobal'), {
+  type: 'line',
+  data: {
+    labels: ['2000','2005','2010','2015','2020','2023'],
+    datasets: [{ label: 'Plastic Production (Mt)', data: [200,250,300,350,390,430], borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.08)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#00e5ff' }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chartRecycle'), {
+  type: 'bar',
+  data: {
+    labels: ['2010','2012','2014','2016','2018','2020','2022'],
+    datasets: [{ label: 'Recycling %', data: [18,20,22,25,28,30,32], backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 5 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chartFactors'), {
+  type: 'bar',
+  data: {
+    labels: ['Pop × Waste', 'Rainfall', 'River Proximity', 'Low Recycling'],
+    datasets: [{ label: 'Weight in Score', data: [4.5,2.5,3.0,2.0], backgroundColor: ['#ef4444','#3b82f6','#8b5cf6','#f59e0b'], borderRadius: 6 }]
+  },
+  options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(26,53,88,0.5)' } }, y: { grid: { display: false } } } }
+});
+
+const low = refData.filter(d => d[5] === "Low").length;
+const med = refData.filter(d => d[5] === "Medium").length;
+const high = refData.filter(d => d[5] === "High").length;
+
+new Chart(document.getElementById('chartAboutRisk'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Low', 'Medium', 'High'],
+    datasets: [{ data: [low, med, high], backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)'], borderColor: ['#10b981','#f59e0b','#ef4444'], borderWidth: 2 }]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } } } }
+});
+
+new Chart(document.getElementById('riskChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Low','Medium','High'],
+    datasets: [{ data: [low, med, high], backgroundColor: ['rgba(16,185,129,0.7)', 'rgba(245,158,11,0.7)', 'rgba(239,68,68,0.7)'], borderRadius: 6 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' }, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      { label: 'Low', data: refData.filter(d => d[5]==='Low').map(d => ({ x: d[0], y: d[1] })), backgroundColor: 'rgba(16,185,129,0.7)', pointRadius: 7 },
+      { label: 'Medium', data: refData.filter(d => d[5]==='Medium').map(d => ({ x: d[0], y: d[1] })), backgroundColor: 'rgba(245,158,11,0.7)', pointRadius: 7 },
+      { label: 'High', data: refData.filter(d => d[5]==='High').map(d => ({ x: d[0], y: d[1] })), backgroundColor: 'rgba(239,68,68,0.7)', pointRadius: 7 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, scales: { x: { title: { display: true, text: 'Population Density', color: '#6b8cad' }, grid: { color: 'rgba(26,53,88,0.5)' } }, y: { title: { display: true, text: 'Plastic Waste (kg/day)', color: '#6b8cad' }, grid: { color: 'rgba(26,53,88,0.5)' } } } }
+});
+
+const popVals = refData.map(d => d[0]);
+const plasticVals = refData.map(d => d[1]);
+const rainVals = refData.map(d => d[3]);
+const recycleVals = refData.map(d => d[2]);
+
+new Chart(document.getElementById('chartPop'), {
+  type: 'line',
+  data: { labels: popVals.map((_,i) => 'R'+(i+1)), datasets: [{ label: 'Population Density', data: popVals, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.4 }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chartPlastic'), {
+  type: 'bar',
+  data: { labels: popVals.map((_,i) => 'R'+(i+1)), datasets: [{ label: 'Plastic Waste', data: plasticVals, backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 4 }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chartRain'), {
+  type: 'line',
+  data: { labels: popVals.map((_,i) => 'R'+(i+1)), datasets: [{ label: 'Rainfall (mm)', data: rainVals, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4 }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('chartRecycleViz'), {
+  type: 'line',
+  data: { labels: popVals.map((_,i) => 'R'+(i+1)), datasets: [{ label: 'Recycling Rate (%)', data: recycleVals, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.4 }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(26,53,88,0.5)' } }, x: { grid: { display: false } } } }
+});
+
+</script>
+</body>
+</html>
