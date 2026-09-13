@@ -1,14 +1,14 @@
-# 🌊 Microplastic Pollution Risk Predictor
+#  Microplastic Pollution Risk Predictor
 
 An advanced environmental intelligence platform that analyzes multiple indicators to predict microplastic contamination risk for any location or Indian city.
 
 ## 🔗 Live Website
 
-**🚀 [Open the Live Application Here](https://stately-fenglisu-225d1b.netlify.app/)**
+** [Open the Live Application Here](https://stately-fenglisu-225d1b.netlify.app/)**
 
 **Hosted on Netlify** - Fast, reliable, and always up-to-date!
 
-## 📋 About
+##  About
 
 The Microplastic Pollution Risk Predictor helps you understand microplastic exposure risks based on environmental factors. By analyzing key indicators like population density, plastic waste, recycling rates, rainfall patterns, and river proximity, the application provides accurate risk assessments.
 
@@ -21,7 +21,7 @@ The Microplastic Pollution Risk Predictor helps you understand microplastic expo
 - **Dataset Insights** - Explore comprehensive microplastic pollution data
 - **Real-time Risk Assessment** - Get instant results based on environmental indicators
 
-## 🌍 Environmental Indicators Analyzed
+##  Environmental Indicators Analyzed
 
 - 📍 **Population Density** - Higher density often correlates with more plastic waste
 - 🗑️ **Plastic Waste** - Direct measure of pollution levels
@@ -29,7 +29,7 @@ The Microplastic Pollution Risk Predictor helps you understand microplastic expo
 - 🌧️ **Rainfall** - Water runoff carrying microplastics
 - 🏞️ **River Proximity** - Distance to water bodies affecting contamination
 
-## 🎨 Technologies Used
+##  Technologies Used
 
 - **Frontend**: HTML5, CSS3, JavaScript
 - **Visualization**: Chart.js
@@ -37,7 +37,7 @@ The Microplastic Pollution Risk Predictor helps you understand microplastic expo
 - **Hosting**: GitHub Pages
 - **Data**: Environmental datasets and analysis
 
-## 🚀 Quick Start
+##  Quick Start
 
 1. Visit the live application: https://stately-fenglisu-225d1b.netlify.app/
 2. Select your preferred predictor mode:
